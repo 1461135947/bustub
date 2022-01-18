@@ -22,7 +22,7 @@ TEST(StarterTest, SampleTest) {
   EXPECT_EQ(a, 1);
 }
 
-TEST(StarterTest, DISABLED_AddMatricesTest) {
+TEST(StarterTest, AddMatricesTest) {
   std::unique_ptr<RowMatrix<int>> mat1_ptr{new RowMatrix<int>(3, 3)};
   int arr1[9] = {1, 4, 2, 5, 2, -1, 0, 3, 1};
   mat1_ptr->MatImport(&arr1[0]);
@@ -51,7 +51,7 @@ TEST(StarterTest, DISABLED_AddMatricesTest) {
   }
 }
 
-TEST(StarterTest, DISABLED_MultiplyMatricesTest) {
+TEST(StarterTest, MultiplyMatricesTest) {
   // Multiply
   int arr1[6] = {1, 2, 3, 4, 5, 6};
   std::unique_ptr<RowMatrix<int>> mat1_ptr{new RowMatrix<int>(2, 3)};
@@ -79,5 +79,20 @@ TEST(StarterTest, DISABLED_MultiplyMatricesTest) {
       EXPECT_EQ(arr3[i * 2 + j], product_ptr->GetElem(i, j));
     }
   }
+}
+TEST(StarterTest, GemmMatrices) {
+  // Multiply
+  int arr1[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+  std::unique_ptr<RowMatrix<int>> mat1_ptr{new RowMatrix<int>(3, 3)};
+  mat1_ptr->MatImport(&arr1[0]);
+
+  int arr2[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+  std::unique_ptr<RowMatrix<int>> mat2_ptr{new RowMatrix<int>(3, 3)};
+  mat2_ptr->MatImport(&arr2[0]);
+
+  int arr3[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+  std::unique_ptr<RowMatrix<int>> mat3_ptr{new RowMatrix<int>(3, 3)};
+  mat3_ptr->MatImport(&arr3[0]);
+  RowMatrixOperations<int>::GemmMatrices(std::move(mat1_ptr), std::move(mat2_ptr), std::move(mat3_ptr));
 }
 }  // namespace bustub

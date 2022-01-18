@@ -117,7 +117,7 @@ class BufferPoolManager {
    * @return the requested page
    */
   Page *FetchPageImpl(page_id_t page_id);
-
+  Page *FindFrame(frame_id_t *frame_id);
   /**
    * Unpin the target page from the buffer pool.
    * @param page_id id of page to be unpinned

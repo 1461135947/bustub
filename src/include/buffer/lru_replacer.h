@@ -13,9 +13,9 @@
 #pragma once
 
 #include <list>
+#include <map>
 #include <mutex>  // NOLINT
 #include <vector>
-
 #include "buffer/replacer.h"
 #include "common/config.h"
 
@@ -46,6 +46,12 @@ class LRUReplacer : public Replacer {
   size_t Size() override;
 
  private:
+  size_t max_num_pages_;
+  size_t num_pages_;
+  std::list<frame_id_t> lru;
+  std::map<frame_id_t, std::list<frame_id_t>::iterator> mp;
+  std::mutex lock;
+
   // TODO(student): implement me!
 };
 
