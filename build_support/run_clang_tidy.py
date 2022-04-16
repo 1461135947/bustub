@@ -264,8 +264,17 @@ def main():
 
     # Load the database and extract all files.
     database = json.load(open(os.path.join(build_path, db_path)))
-    files = [make_absolute(entry['file'], entry['directory'])
-             for entry in database]
+    # files = [make_absolute(entry['file'], entry['directory'])
+    #          for entry in database]
+
+    files = []
+    for entry in database:
+        file = make_absolute(entry['file'], entry['directory'])
+        # if "/home/xzz/code/bustub/" in file:
+        # if "src" in file:
+        if "/home/xzz/code/bustub/src" in str(file):
+            files.append(file)
+
 
     max_task = args.j
     if max_task == 0:
