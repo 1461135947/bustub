@@ -25,6 +25,7 @@ namespace bustub {
 #define INDEX_TEMPLATE_ARGUMENTS template <typename KeyType, typename ValueType, typename KeyComparator>
 
 // define page type enum
+// 页的类型:内部节点页、叶子节点页
 enum class IndexPageType { INVALID_INDEX_PAGE = 0, LEAF_PAGE, INTERNAL_PAGE };
 
 /**
@@ -39,6 +40,15 @@ enum class IndexPageType { INVALID_INDEX_PAGE = 0, LEAF_PAGE, INTERNAL_PAGE };
  * ----------------------------------------------------------------------------
  * | ParentPageId (4) | PageId(4) |
  * ----------------------------------------------------------------------------
+ */
+/**
+ * 记录了B+树页的元数据信息;总共24字节包括如下资金端
+ * PageType(4字节):内部节点还是叶子结点
+ * LSN(4字节):日志序列号
+ * CurrentSize(4字节):当前页中存储的KV键值对
+ * MaxSize(4字节): 页中可以存储的最大KV键值对
+ * ParentPageID(4字节):父节点的PageID;用于定位父节点
+ * PageID(4字节): 节点的PageID
  */
 class BPlusTreePage {
  public:
@@ -64,11 +74,17 @@ class BPlusTreePage {
 
  private:
   // member variable, attributes that both internal and leaf page share
+  // 页的类型:内部页和叶子页
   IndexPageType page_type_ __attribute__((__unused__));
+  // 日志序列号 在project4中使用
   lsn_t lsn_ __attribute__((__unused__));
+  // kv键值对的数量
   int size_ __attribute__((__unused__));
+  // 当前页可以存储的kv键值对的数量
   int max_size_ __attribute__((__unused__));
+  // 父节点的pageid
   page_id_t parent_page_id_ __attribute__((__unused__));
+  // 当前页的pageid
   page_id_t page_id_ __attribute__((__unused__));
 };
 
