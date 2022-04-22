@@ -23,7 +23,7 @@ INDEX_TEMPLATE_ARGUMENTS
 class IndexIterator {
  public:
   // you may define your own constructor based on your member variables
-  IndexIterator();
+  IndexIterator(B_PLUS_TREE_LEAF_PAGE_TYPE *leaf, int index, BufferPoolManager *buffer_pool_manager);
   ~IndexIterator();
 
   bool isEnd();
@@ -32,11 +32,15 @@ class IndexIterator {
 
   IndexIterator &operator++();
 
-  bool operator==(const IndexIterator &itr) const { throw std::runtime_error("unimplemented"); }
+  bool operator==(const IndexIterator &itr) const { return (itr.index_ == index_) && (itr.leaf_ == leaf_); }
 
-  bool operator!=(const IndexIterator &itr) const { throw std::runtime_error("unimplemented"); }
+  bool operator!=(const IndexIterator &itr) const { return (itr.leaf_ != leaf_) || (index_ != itr.index_); }
 
  private:
+  // add your own private member variables here
+  int index_;
+  B_PLUS_TREE_LEAF_PAGE_TYPE *leaf_;
+  BufferPoolManager *buffer_pool_manager_;
   // add your own private member variables here
 };
 
