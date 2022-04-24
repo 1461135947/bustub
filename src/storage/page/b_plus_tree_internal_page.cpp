@@ -199,6 +199,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyNFrom(MappingType *items, int size, Buf
  */
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::Remove(int index) {
+  assert(index >= 0 && index < GetSize());
   int size = GetSize();
   // 用后面的数据覆盖前面的数据
   while (index < size - 1) {
@@ -240,29 +241,24 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveAllTo(BPlusTreeInternalPage *recipient,
   B_PLUS_TREE_INTERNAL_PAGE_TYPE *parent_page =
       reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE_TYPE *>(buffer_pool_manager->FetchPage(GetParentPageId())->GetData());
   parent_page->Remove(parent_page->ValueIndex(GetPageId()));
-
+  SetKeyAt(0, middle_key);
   int offeset = recipient->GetSize();
-
   // 拷贝数据
   for (int i = 0; i < GetSize(); i++) {
-    if (i == 0) {
-      recipient->array[i + offeset].first = middle_key;
-    } else {
-      recipient->array[i + offeset].first = array[i].first;
-    }
-    recipient->array[i].second = array[i].second;
+    recipient->array[i + offeset] = array[i];
     // 修改子页的parent_page id
     BPlusTreePage *child_page =
         reinterpret_cast<BPlusTreePage *>(buffer_pool_manager->FetchPage(array[i].second)->GetData());
-    child_page->SetParentPageId(GetPageId());
+    child_page->SetParentPageId(recipient->GetPageId());
     buffer_pool_manager->UnpinPage(array[i].second, true);
   }
 
   // 修改两个页中的KV键值对的数量
   recipient->IncreaseSize(GetSize());
   SetSize(0);
+  assert(recipient->GetSize() <= GetMaxSize());
   buffer_pool_manager->UnpinPage(recipient->GetPageId(), true);
-  buffer_pool_manager->UnpinPage(GetParentPageId(), true);
+  buffer_pool_manager->UnpinPage(GetParentPageId(), false);
   buffer_pool_manager->UnpinPage(GetPageId(), true);
 }
 
@@ -280,9 +276,6 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveAllTo(BPlusTreeInternalPage *recipient,
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeInternalPage *recipient, const KeyType &middle_key,
                                                       BufferPoolManager *buffer_pool_manager) {
-  buffer_pool_manager->FetchPage(recipient->GetPageId());
-  buffer_pool_manager->FetchPage(GetPageId());
-
   //修改父节点页中的数据
   B_PLUS_TREE_INTERNAL_PAGE_TYPE *parent_page =
       reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE_TYPE *>(buffer_pool_manager->FetchPage(GetParentPageId())->GetData());
@@ -302,8 +295,6 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeInternalPage *rec
   Remove(0);
   buffer_pool_manager->UnpinPage(val, true);
   buffer_pool_manager->UnpinPage(GetParentPageId(), true);
-  buffer_pool_manager->UnpinPage(recipient->GetPageId(), true);
-  buffer_pool_manager->UnpinPage(GetPageId(), true);
 }
 
 /* Append an entry at the end.
@@ -333,9 +324,6 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::CopyLastFrom(const MappingType &pair, Buffe
 INDEX_TEMPLATE_ARGUMENTS
 void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeInternalPage *recipient, const KeyType &middle_key,
                                                        BufferPoolManager *buffer_pool_manager) {
-  buffer_pool_manager->FetchPage(recipient->GetPageId());
-  buffer_pool_manager->FetchPage(GetPageId());
-
   //修改父节点页中的数据
   B_PLUS_TREE_INTERNAL_PAGE_TYPE *parent_page =
       reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE_TYPE *>(buffer_pool_manager->FetchPage(GetParentPageId())->GetData());
@@ -359,8 +347,6 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeInternalPage *re
   Remove(GetSize() - 1);
   buffer_pool_manager->UnpinPage(val, true);
   buffer_pool_manager->UnpinPage(GetParentPageId(), true);
-  buffer_pool_manager->UnpinPage(recipient->GetPageId(), true);
-  buffer_pool_manager->UnpinPage(GetPageId(), true);
 }
 
 /* Append an entry at the beginning.

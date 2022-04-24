@@ -13,6 +13,7 @@
 
 #include "common/exception.h"
 #include "common/rid.h"
+#include "storage/page/b_plus_tree_internal_page.h"
 #include "storage/page/b_plus_tree_leaf_page.h"
 
 namespace bustub {
@@ -191,14 +192,15 @@ int B_PLUS_TREE_LEAF_PAGE_TYPE::RemoveAndDeleteRecord(const KeyType &key, const 
  * to update the next_page id in the sibling page
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveAllTo(BPlusTreeLeafPage *recipient, BufferPoolManager *buffer_pool_manager) {
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveAllTo(BPlusTreeLeafPage *recipient, const KeyType &middle_key,
+                                           BufferPoolManager *buffer_pool_manager) {
   // 更新sibling page
   recipient->next_page_id_ = next_page_id_;
-  int index = recipient->GetSize();
+  int offset = recipient->GetSize();
   // 拷贝数据
   int size = GetSize();
   for (int i = 0; i < size; i++) {
-    recipient->array[index + i] = array[i];
+    recipient->array[offset + i] = array[i];
   }
   recipient->IncreaseSize(size);
   SetSize(0);
@@ -211,7 +213,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveAllTo(BPlusTreeLeafPage *recipient, BufferP
  * Remove the first key & value pair from this page to "recipient" page.
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeLeafPage *recipient,
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeLeafPage *recipient, const KeyType &middle_key,
                                                   BufferPoolManager *buffer_pool_manager) {
   int size = GetSize();
   recipient->CopyLastFrom(array[0]);
@@ -219,6 +221,11 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveFirstToEndOf(BPlusTreeLeafPage *recipient,
     array[i] = array[i + 1];
   }
   IncreaseSize(-1);
+  // 修改父节点中的数据
+  Page *page = buffer_pool_manager->FetchPage(GetParentPageId());
+  B_PLUS_TREE_INTERNAL_PAGE *parent = reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE *>(page->GetData());
+  parent->SetKeyAt(parent->ValueIndex(GetPageId()), array[0].first);
+  buffer_pool_manager->UnpinPage(GetParentPageId(), true);
 }
 
 /*
@@ -235,10 +242,15 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::CopyLastFrom(const MappingType &item) {
  * Remove the last key & value pair from this page to "recipient" page.
  */
 INDEX_TEMPLATE_ARGUMENTS
-void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeLeafPage *recipient,
+void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveLastToFrontOf(BPlusTreeLeafPage *recipient, const KeyType &middle_key,
                                                    BufferPoolManager *buffer_pool_manager) {
   recipient->CopyFirstFrom(array[GetSize() - 1]);
   IncreaseSize(-1);
+  // 修改父节点中的数据
+  Page *page = buffer_pool_manager->FetchPage(GetParentPageId());
+  B_PLUS_TREE_INTERNAL_PAGE *parent = reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE *>(page->GetData());
+  parent->SetKeyAt(parent->ValueIndex(recipient->GetPageId()), recipient->array[0].first);
+  buffer_pool_manager->UnpinPage(GetParentPageId(), true);
 }
 
 /*

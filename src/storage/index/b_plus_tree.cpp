@@ -213,11 +213,14 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
   if (IsEmpty()) {
     return;
   }
+  // 先定位到叶子节点;然后从叶子节点中删除数据
   B_PLUS_TREE_LEAF_PAGE_TYPE *leaf_page = FindLeafPage(key, false);
   int size = leaf_page->RemoveAndDeleteRecord(key, comparator_);
-  if (size < (leaf_max_size_ / 2)) {
-    // CoalesceOrRedistribute
+  // 判断是否需要进行页面合并或者重组操作
+  if (size < leaf_page->GetMinSize()) {
+    CoalesceOrRedistribute(leaf_page, transaction);
   }
+  buffer_pool_manager_->UnpinPage(leaf_page->GetPageId(), true);
 }
 
 /*
@@ -230,9 +233,62 @@ void BPLUSTREE_TYPE::Remove(const KeyType &key, Transaction *transaction) {
 INDEX_TEMPLATE_ARGUMENTS
 template <typename N>
 bool BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, Transaction *transaction) {
+  // root节点需要特殊处理
+  if (node->IsRootPage()) {
+    return AdjustRoot(node);
+  }
+  // 寻找兄弟节点
+  N *sibling_node;
+  bool is_pre_node = FindSibling(node, &sibling_node);
+  B_PLUS_TREE_INTERNAL_PAGE *parent_node =
+      reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE *>(FetchPage(node->GetParentPageId()));
+  // 根据兄弟节点和当点前节点的KV数量决定是合并还是偷取
+  // 两者数量和小于maxsize；进行合并
+  if (node->GetSize() + sibling_node->GetSize() < node->GetMaxSize()) {
+    // 假设node节点在前;sibling节点在后面
+    if (is_pre_node) {
+      std::swap(node, sibling_node);
+    }
+    // 进行合并操作
+    int index = parent_node->ValueIndex(node->GetParentPageId());
+    Coalesce(sibling_node, node, parent_node, index, transaction);
+    buffer_pool_manager_->UnpinPage(parent_node->GetPageId(), true);
+    return true;
+  }
+  // 反之进行偷取
+  int middle_index;
+  if (is_pre_node) {
+    middle_index = parent_node->ValueIndex(node->GetPageId());
+  } else {
+    middle_index = parent_node->ValueIndex(sibling_node->GetPageId());
+  }
+
+  KeyType middle_key = parent_node->KeyAt(middle_index);
+  Redistribute(sibling_node, node, middle_key, is_pre_node);
+  buffer_pool_manager_->UnpinPage(parent_node->GetPageId(), false);
   return false;
 }
-
+INDEX_TEMPLATE_ARGUMENTS
+template <typename N>
+bool BPLUSTREE_TYPE::FindSibling(N *node, N **sibling) {
+  // 从父节点中找出当前节点相邻的两个兄弟节点
+  BPlusTreePage *temp_node = FetchPage(node->GetParentPageId());
+  B_PLUS_TREE_INTERNAL_PAGE *parent_page = reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE *>(temp_node);
+  int index = parent_page->ValueIndex(node->GetPageId());
+  int sibling_index;
+  // 优先选择前一个节点
+  bool res;
+  if (index == 0) {
+    res = true;
+    sibling_index = index + 1;
+  } else {
+    res = false;
+    sibling_index = index - 1;
+  }
+  *sibling = reinterpret_cast<N *>(FetchPage(parent_page->ValueAt(sibling_index)));
+  buffer_pool_manager_->UnpinPage(parent_page->GetPageId(), false);
+  return res;
+}
 /*
  * Move all the key & value pairs from one page to its sibling page, and notify
  * buffer pool manager to delete this page. Parent page must be adjusted to
@@ -247,9 +303,22 @@ bool BPLUSTREE_TYPE::CoalesceOrRedistribute(N *node, Transaction *transaction) {
  */
 INDEX_TEMPLATE_ARGUMENTS
 template <typename N>
-bool BPLUSTREE_TYPE::Coalesce(N **neighbor_node, N **node,
-                              BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent, int index,
+bool BPLUSTREE_TYPE::Coalesce(N *const &neighbor_node, N *const &node,
+                              BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *const &parent, int index,
                               Transaction *transaction) {
+  KeyType middle_key = parent->KeyAt(index);
+  // 将node中所有的数据移动到兄弟节点上
+  node->MoveAllTo(neighbor_node, middle_key, buffer_pool_manager_);
+
+  // 删除node节点
+  buffer_pool_manager_->UnpinPage(node->GetPageId(), true);
+  buffer_pool_manager_->DeletePage(node->GetPageId());
+  buffer_pool_manager_->UnpinPage(neighbor_node->GetPageId(), true);
+  // 删除父节点中当前节点的数据
+  parent->Remove(index);
+  if (parent->GetSize() <= parent->GetMinSize()) {
+    return CoalesceOrRedistribute(parent, transaction);
+  }
   return false;
 }
 
@@ -264,7 +333,18 @@ bool BPLUSTREE_TYPE::Coalesce(N **neighbor_node, N **node,
  */
 INDEX_TEMPLATE_ARGUMENTS
 template <typename N>
-void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node, int index) {}
+void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node, const KeyType &middle_key, bool is_pre_node) {
+  // 进行KV偷取
+  // neighbor_node是node的前一个节点
+  if (is_pre_node) {
+    neighbor_node->MoveLastToFrontOf(node, middle_key, buffer_pool_manager_);
+  } else {
+    // neighbor_node是的后一个节点
+    neighbor_node->MoveFirstToEndOf(node, middle_key, buffer_pool_manager_);
+  }
+  buffer_pool_manager_->UnpinPage(neighbor_node->GetPageId(), true);
+  buffer_pool_manager_->UnpinPage(node->GetPageId(), true);
+}
 /*
  * Update root page if necessary
  * NOTE: size of root page can be less than min size and this method is only
@@ -276,7 +356,35 @@ void BPLUSTREE_TYPE::Redistribute(N *neighbor_node, N *node, int index) {}
  * happend
  */
 INDEX_TEMPLATE_ARGUMENTS
-bool BPLUSTREE_TYPE::AdjustRoot(BPlusTreePage *old_root_node) { return false; }
+bool BPLUSTREE_TYPE::AdjustRoot(BPlusTreePage *old_root_node) {
+  // 如果root节点是叶子节点就是case2的情况
+  if (old_root_node->IsLeafPage()) {
+    // 解除page的引用;删除root节点
+    buffer_pool_manager_->UnpinPage(old_root_node->GetPageId(), false);
+    buffer_pool_manager_->DeletePage(old_root_node->GetPageId());
+    // 重置b+树的root_page_id
+    root_page_id_ = INVALID_PAGE_ID;
+    UpdateRootPageId();
+    return true;
+  }
+  // 如果是内部节点并且只有一个key
+  if (old_root_node->GetSize() == 1) {
+    // 删除root节点中的key并且将唯一的子节点提升为root节点
+    B_PLUS_TREE_INTERNAL_PAGE *root_page = reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE *>(old_root_node);
+    page_id_t child_page_id = root_page->RemoveAndReturnOnlyChild();
+    root_page_id_ = child_page_id;
+    UpdateRootPageId();
+    // 设置新的root page的parent_page_id
+    B_PLUS_TREE_INTERNAL_PAGE *new_root =
+        reinterpret_cast<B_PLUS_TREE_INTERNAL_PAGE *>(buffer_pool_manager_->FetchPage(child_page_id)->GetData());
+    new_root->SetParentPageId(INVALID_PAGE_ID);
+    // 删除旧的root页
+    buffer_pool_manager_->UnpinPage(old_root_node->GetPageId(), false);
+    buffer_pool_manager_->DeletePage(old_root_node->GetPageId());
+    buffer_pool_manager_->UnpinPage(child_page_id, true);
+  }
+  return false;
+}
 
 /*****************************************************************************
  * INDEX ITERATOR

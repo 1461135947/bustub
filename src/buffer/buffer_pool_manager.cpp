@@ -205,7 +205,7 @@ bool BufferPoolManager::DeletePageImpl(page_id_t page_id) {
     Page *page = &pages_[frame_id];
     page->WLatch();
     // 有其他线程在引用当前page；不能进行删除
-    if (page->pin_count_ != 0) {
+    if (page->pin_count_ > 0) {
       page->WUnlatch();
       return false;
     }

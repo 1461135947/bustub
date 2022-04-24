@@ -95,11 +95,12 @@ class BPlusTree {
   bool CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr);
 
   template <typename N>
-  bool Coalesce(N **neighbor_node, N **node, BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> **parent,
-                int index, Transaction *transaction = nullptr);
+  bool Coalesce(N *const &neighbor_node, N *const &node,
+                BPlusTreeInternalPage<KeyType, page_id_t, KeyComparator> *const &parent, int index,
+                Transaction *transaction = nullptr);
 
   template <typename N>
-  void Redistribute(N *neighbor_node, N *node, int index);
+  void Redistribute(N *neighbor_node, N *node, const KeyType &middle_key, bool is_pre_node);
 
   bool AdjustRoot(BPlusTreePage *node);
 
@@ -109,7 +110,8 @@ class BPlusTree {
   void ToGraph(BPlusTreePage *page, BufferPoolManager *bpm, std::ofstream &out) const;
 
   void ToString(BPlusTreePage *page, BufferPoolManager *bpm) const;
-
+  template <typename N>
+  bool FindSibling(N *node, N **sibling);
   // member variable
   std::string index_name_;
   page_id_t root_page_id_;
