@@ -51,16 +51,16 @@ Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
     frame_id = it->second;
     page = &pages_[frame_id];
     // 增加pin_count;然后返回
-    page->WLatch();
+    // page->WLatch();
     page->pin_count_++;
-    page->WUnlatch();
+    // page->WUnlatch();
     return page;
   }
   page = FindFrame(&frame_id);
   if (page == nullptr) {
     return page;
   }
-  page->WLatch();
+  // page->WLatch();
   // 页中设置了脏位将数据写回
   if (page->IsDirty()) {
     disk_manager_->WritePage(page->GetPageId(), page->GetData());
@@ -75,7 +75,7 @@ Page *BufferPoolManager::FetchPageImpl(page_id_t page_id) {
   disk_manager_->ReadPage(page_id, page->data_);
   page->is_dirty_ = false;
   page->pin_count_ = 1;
-  page->WUnlatch();
+  // page->WUnlatch();
   return page;
 }
 
@@ -84,14 +84,14 @@ bool BufferPoolManager::UnpinPageImpl(page_id_t page_id, bool is_dirty) {
   auto it = page_table_.find(page_id);
   if (it != page_table_.end()) {
     auto frame_id = it->second;
-    pages_[frame_id].WLatch();
+    // pages_[frame_id].WLatch();
     // 更新is_dirty位
     if (is_dirty) {
       pages_[frame_id].is_dirty_ = true;
     }
     // 减少page的pin_count;
     pages_[frame_id].pin_count_--;
-    pages_[frame_id].WUnlatch();
+    // pages_[frame_id].WUnlatch();
     return true;
   }
   return false;
@@ -105,10 +105,10 @@ bool BufferPoolManager::FlushPageImpl(page_id_t page_id) {
     // 将page的内容刷新到磁盘中
     auto frame_id = it->second;
     Page *page = &pages_[frame_id];
-    page->RLatch();
+    // page->RLatch();
     page->is_dirty_ = false;
     disk_manager_->WritePage(page_id, page->GetData());
-    page->RUnlatch();
+    // page->RUnlatch();
     return true;
   }
   return false;
@@ -123,17 +123,17 @@ Page *BufferPoolManager::FindFrame(frame_id_t *frame_id) {
     for (size_t i = 0; i < size; i++) {
       if (replacer_->Victim(frame_id)) {
         page = &pages_[*frame_id];
-        page->RLatch();
+        // page->RLatch();
         if (page->pin_count_ <= 0) {
           not_found = false;
           // 解除在map中的映射
           page_table_.erase(page->GetPageId());
-          page->RUnlatch();
+          // page->RUnlatch();
           break;
         }
         // 否则将弹出的frame_id重新插入
         replacer_->Unpin(*frame_id);
-        page->RUnlatch();
+        //page->RUnlatch();
 
       } else {
         LOG_ERROR("Victim fail");
@@ -167,7 +167,7 @@ Page *BufferPoolManager::NewPageImpl(page_id_t *page_id) {
   if (page == nullptr) {
     return page;
   }
-  page->WLatch();
+  // page->WLatch();
   // 如果frame绑定其他page需要将page中的数据写入的磁盘中
   if (page->IsDirty()) {
     page->is_dirty_ = false;
@@ -184,7 +184,7 @@ Page *BufferPoolManager::NewPageImpl(page_id_t *page_id) {
   if (page_id != nullptr) {
     *page_id = page_id_;
   }
-  page->WUnlatch();
+  // page->WUnlatch();
   return page;
 }
 
@@ -203,10 +203,10 @@ bool BufferPoolManager::DeletePageImpl(page_id_t page_id) {
   {
     frame_id_t frame_id = it->second;
     Page *page = &pages_[frame_id];
-    page->WLatch();
+    // page->WLatch();
     // 有其他线程在引用当前page；不能进行删除
     if (page->pin_count_ > 0) {
-      page->WUnlatch();
+      // page->WUnlatch();
       return false;
     }
     page_table_.erase(page->GetPageId());
@@ -218,7 +218,7 @@ bool BufferPoolManager::DeletePageImpl(page_id_t page_id) {
     page->ResetMemory();
     page->is_dirty_ = false;
     page->pin_count_ = 0;
-    page->WUnlatch();
+    // page->WUnlatch();
   }
   return true;
 }

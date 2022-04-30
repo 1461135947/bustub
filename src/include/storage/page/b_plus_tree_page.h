@@ -24,9 +24,11 @@ namespace bustub {
 
 #define INDEX_TEMPLATE_ARGUMENTS template <typename KeyType, typename ValueType, typename KeyComparator>
 
+
 // define page type enum
 // 页的类型:内部节点页、叶子节点页
 enum class IndexPageType { INVALID_INDEX_PAGE = 0, LEAF_PAGE, INTERNAL_PAGE };
+enum class Operate_Type{OP_READ=0,OP_DELETE,OP_INSERT};
 
 /**
  * Both internal and leaf page are inherited from this page.
@@ -71,6 +73,7 @@ class BPlusTreePage {
   void SetPageId(page_id_t page_id);
 
   void SetLSN(lsn_t lsn = INVALID_LSN);
+  bool IsSafe(Operate_Type operate);
 
  private:
   // member variable, attributes that both internal and leaf page share

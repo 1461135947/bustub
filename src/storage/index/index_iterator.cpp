@@ -2,7 +2,7 @@
  * index_iterator.cpp
  */
 #include <cassert>
-
+#include<iostream>
 #include "storage/index/index_iterator.h"
 
 namespace bustub {
@@ -18,7 +18,7 @@ INDEXITERATOR_TYPE::IndexIterator(B_PLUS_TREE_LEAF_PAGE_TYPE *leaf, int index, B
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE::~IndexIterator() {
   if (leaf_ != nullptr) {
-    buffer_pool_manager_->UnpinPage(leaf_->GetPageId(), false);
+    UnlockAndUnPin();
   }
 }
 
@@ -30,25 +30,33 @@ const MappingType &INDEXITERATOR_TYPE::operator*() { return leaf_->GetItem(index
 
 INDEX_TEMPLATE_ARGUMENTS
 INDEXITERATOR_TYPE &INDEXITERATOR_TYPE::operator++() {
+  // std::cout<<"增加迭代器"<<std::endl;
   index_++;
   //已经遍历完当前页
-  if (leaf_ != nullptr && index_ >= leaf_->GetSize()) {
+  if ( index_ >= leaf_->GetSize()) {
     page_id_t next_page_id = leaf_->GetNextPageId();
+    UnlockAndUnPin();
     if (next_page_id == INVALID_PAGE_ID) {
       // 释放最后一个被引用的页
-      buffer_pool_manager_->UnpinPage(leaf_->GetPageId(), false);
+      // buffer_pool_manager_->UnpinPage(leaf_->GetPageId(), false);
       index_ = 0;
       leaf_ = nullptr;
     } else {
-      buffer_pool_manager_->UnpinPage(leaf_->GetPageId(), false);
+      // buffer_pool_manager_->UnpinPage(leaf_->GetPageId(), false);
       Page *next_page = buffer_pool_manager_->FetchPage(next_page_id);
+      next_page->RLatch();
       leaf_ = reinterpret_cast<B_PLUS_TREE_LEAF_PAGE_TYPE *>(next_page->GetData());
       index_ = 0;
     }
   }
   return *this;
 }
-
+INDEX_TEMPLATE_ARGUMENTS
+void INDEXITERATOR_TYPE::UnlockAndUnPin() {
+    buffer_pool_manager_->FetchPage(leaf_->GetPageId())->RUnlatch();
+    buffer_pool_manager_->UnpinPage(leaf_->GetPageId(), false);
+    buffer_pool_manager_->UnpinPage(leaf_->GetPageId(), false);
+  }
 template class IndexIterator<GenericKey<4>, RID, GenericComparator<4>>;
 
 template class IndexIterator<GenericKey<8>, RID, GenericComparator<8>>;

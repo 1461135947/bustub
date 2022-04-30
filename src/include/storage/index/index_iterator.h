@@ -37,6 +37,7 @@ class IndexIterator {
   bool operator!=(const IndexIterator &itr) const { return (itr.leaf_ != leaf_) || (index_ != itr.index_); }
 
  private:
+ void UnlockAndUnPin() ;
   // add your own private member variables here
   int index_;
   B_PLUS_TREE_LEAF_PAGE_TYPE *leaf_;

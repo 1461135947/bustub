@@ -243,6 +243,7 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveAllTo(BPlusTreeInternalPage *recipient,
   parent_page->Remove(parent_page->ValueIndex(GetPageId()));
   SetKeyAt(0, middle_key);
   int offeset = recipient->GetSize();
+  buffer_pool_manager->UnpinPage(GetParentPageId(), false);
   // 拷贝数据
   for (int i = 0; i < GetSize(); i++) {
     recipient->array[i + offeset] = array[i];
@@ -257,9 +258,6 @@ void B_PLUS_TREE_INTERNAL_PAGE_TYPE::MoveAllTo(BPlusTreeInternalPage *recipient,
   recipient->IncreaseSize(GetSize());
   SetSize(0);
   assert(recipient->GetSize() <= GetMaxSize());
-  buffer_pool_manager->UnpinPage(recipient->GetPageId(), true);
-  buffer_pool_manager->UnpinPage(GetParentPageId(), false);
-  buffer_pool_manager->UnpinPage(GetPageId(), true);
 }
 
 /*****************************************************************************

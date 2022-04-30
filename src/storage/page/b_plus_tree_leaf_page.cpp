@@ -124,6 +124,7 @@ void B_PLUS_TREE_LEAF_PAGE_TYPE::MoveHalfTo(BPlusTreeLeafPage *recipient, Buffer
   int size = GetSize();
   int index = size / 2;
   // 设置节点的next_page_id
+  recipient->SetNextPageId(next_page_id_);
   SetNextPageId(recipient->GetPageId());
   recipient->CopyNFrom(array + index, size - index);
   SetSize(index);

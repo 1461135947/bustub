@@ -11,7 +11,9 @@ if ("${VALGRIND_BIN}" STREQUAL "VALGRIND_BIN-NOTFOUND")
 else()
     message(STATUS "BusTub/test found valgrind at ${VALGRIND_BIN}")
 endif()
-
+SET(CMAKE_BUILD_TYPE "Debug")
+SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g2 -ggdb")
+SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
 set(VALGRIND_OPTIONS
         --error-exitcode=1                      # if leaks are detected, return nonzero value
         # --gen-suppressions=all  # uncomment for leak suppression syntax

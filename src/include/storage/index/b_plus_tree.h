@@ -77,9 +77,38 @@ class BPlusTree {
   // read data from file and remove one by one
   void RemoveFromFile(const std::string &file_name, Transaction *transaction = nullptr);
   // expose for test purpose
-  B_PLUS_TREE_LEAF_PAGE_TYPE *FindLeafPage(const KeyType &key, bool leftMost = false);
+  B_PLUS_TREE_LEAF_PAGE_TYPE *FindLeafPage(const KeyType &key, bool leftMost = false,Operate_Type operate=Operate_Type::OP_READ,Transaction *transaction=nullptr);
 
  private:
+ BPlusTreePage *CrabingProtocalFetchPage(page_id_t page_id,Operate_Type op, page_id_t previous, Transaction *transaction);
+ void FreePagesInTransaction(bool is_write,  Transaction *transaction, page_id_t cur = -1);
+  inline void LockRootPageId(bool is_write) {
+    if (is_write) {
+      mutex_.WLock();
+    } else {
+      mutex_.RLock();
+    }
+    root_lock_count++;
+  }
+  inline void TryUnlockRootPageId(bool is_write){
+    if(root_lock_count>0){
+      if(is_write){
+        mutex_.WUnlock();
+      }else{
+        mutex_.RUnlock();
+      }
+      root_lock_count--;
+    }
+  }
+  void Lock(bool is_write,Page *page){
+    if(is_write){
+      page->WLatch();
+    }else{
+      page->RLatch();
+    }
+  }
+  void UnLock(bool is_write,Page *page);
+  void UnLock(bool exclusive,page_id_t pageId);
   BPlusTreePage *FetchPage(page_id_t page_id);
   void StartNewTree(const KeyType &key, const ValueType &value);
 
@@ -89,7 +118,7 @@ class BPlusTree {
                         Transaction *transaction = nullptr);
 
   template <typename N>
-  N *Split(N *node);
+  N *Split(N *node,Transaction *transaction = nullptr);
 
   template <typename N>
   bool CoalesceOrRedistribute(N *node, Transaction *transaction = nullptr);
@@ -111,7 +140,7 @@ class BPlusTree {
 
   void ToString(BPlusTreePage *page, BufferPoolManager *bpm) const;
   template <typename N>
-  bool FindSibling(N *node, N **sibling);
+  bool FindSibling(N *node, N **sibling,Transaction *Transaction);
   // member variable
   std::string index_name_;
   page_id_t root_page_id_;
@@ -119,6 +148,8 @@ class BPlusTree {
   KeyComparator comparator_;
   int leaf_max_size_;
   int internal_max_size_;
+  ReaderWriterLatch mutex_;
+  static thread_local int root_lock_count;
 };
 
 }  // namespace bustub

@@ -50,7 +50,19 @@ int BPlusTreePage::GetMinSize() const {
   }
   return max_size_ / 2;
 }
-
+bool BPlusTreePage::IsSafe(Operate_Type operate){
+  int size = GetSize();
+  // 如果是Insert操作;不会引发节点的分裂才是安全的
+  if (operate==Operate_Type::OP_INSERT) {
+    return size < (GetMaxSize()-1);
+  }
+  int minSize = GetMinSize() + 1;
+  // 如果是delete操作要保证不会引发节点合并才是安全的
+  if (operate==Operate_Type::OP_DELETE) {
+    return (IsLeafPage()) ? size >= minSize : size > minSize;
+  }
+  assert(false);//invalid area
+}
 /*
  * Helper methods to get/set parent page id
  */
