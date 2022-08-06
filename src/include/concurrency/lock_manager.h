@@ -33,7 +33,7 @@ class TransactionManager;
  */
 class LockManager {
   enum class LockMode { SHARED, EXCLUSIVE };
-
+  enum class VisitedType { NOT_VISITED, IN_STACK, VISITED };
   class LockRequest {
    public:
     LockRequest(txn_id_t txn_id, LockMode lock_mode) : txn_id_(txn_id), lock_mode_(lock_mode), granted_(false) {}
@@ -45,11 +45,31 @@ class LockManager {
 
   class LockRequestQueue {
    public:
+    std::mutex latch_;
     std::list<LockRequest> request_queue_;
     std::condition_variable cv_;  // for notifying blocked transactions on this rid
     bool upgrading_ = false;
   };
+  // 检查锁请求的适配性
+  static bool IsLockCompatible(const LockRequestQueue &lock_request_queue, const LockRequest &to_check_request) {
+    for (auto &&lock_request : lock_request_queue.request_queue_) {
+      if (lock_request.txn_id_ == to_check_request.txn_id_) {
+        return true;
+      }
 
+      // 锁已经被获取;之前和当前请求的锁都是共享锁
+      const auto isCompatible =
+          lock_request.granted_ &&                         
+          (lock_request.lock_mode_ == LockMode::EXCLUSIVE  
+               ? false
+               : to_check_request.lock_mode_ != LockMode::EXCLUSIVE);
+      if (!isCompatible) {
+        return false;
+      }
+    }
+
+    return true;
+  }
  public:
   /**
    * Creates a new lock manager configured for the deadlock detection policy.
@@ -140,6 +160,13 @@ class LockManager {
   std::unordered_map<RID, LockRequestQueue> lock_table_;
   /** Waits-for graph representation. */
   std::unordered_map<txn_id_t, std::vector<txn_id_t>> waits_for_;
+  void BuildWaitsForGraph();
+  // DFS搜索树
+  bool ProcessDFSTree(txn_id_t *txn_id, std::stack<txn_id_t> *stack,
+                      std::unordered_map<txn_id_t, VisitedType> *visited);
+  txn_id_t GetYoungestTransactionInCycle(std::stack<txn_id_t> *stack, txn_id_t vertex);                    
+  // 终止事务
+  void AbortTransaction(Transaction *txn, AbortReason abort_reason);
 };
 
 }  // namespace bustub
