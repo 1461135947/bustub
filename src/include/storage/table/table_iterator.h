@@ -29,10 +29,12 @@ class TableIterator {
   friend class Cursor;
 
  public:
+ TableIterator(){ tuple_=new Tuple(RID());}
   TableIterator(TableHeap *table_heap, RID rid, Transaction *txn);
 
   TableIterator(const TableIterator &other)
-      : table_heap_(other.table_heap_), tuple_(new Tuple(*other.tuple_)), txn_(other.txn_) {}
+      : table_heap_(other.table_heap_), tuple_(new Tuple(*other.tuple_)), txn_(other.txn_) {
+      }
 
   ~TableIterator() { delete tuple_; }
 

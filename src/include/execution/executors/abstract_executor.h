@@ -19,13 +19,15 @@ namespace bustub {
 /**
  * AbstractExecutor implements the Volcano tuple-at-a-time iterator model.
  */
+#define B_PLUS_TREE_INDEX_ITERATOR_TYPE IndexIterator<GenericKey<8>, RID, GenericComparator<8>>
+#define B_PLUS_TREE_INDEX_TYPE BPlusTreeIndex<GenericKey<8>, RID, GenericComparator<8>>
 class AbstractExecutor {
  public:
   /**
    * Constructs a new AbstractExecutor.
    * @param exec_ctx the executor context that the executor runs with
    */
-  explicit AbstractExecutor(ExecutorContext *exec_ctx) : exec_ctx_{exec_ctx} {}
+  explicit AbstractExecutor(ExecutorContext *exec_ctx):exec_ctx_{exec_ctx} {} 
 
   /** Virtual destructor. */
   virtual ~AbstractExecutor() = default;

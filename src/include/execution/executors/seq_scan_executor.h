@@ -18,6 +18,7 @@
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/seq_scan_plan.h"
 #include "storage/table/tuple.h"
+#include"common/rid.h"
 
 namespace bustub {
 
@@ -41,6 +42,10 @@ class SeqScanExecutor : public AbstractExecutor {
 
  private:
   /** The sequential scan plan node to be executed. */
+  Tuple TransformOutPutSchema(Tuple &tuple);
   const SeqScanPlanNode *plan_;
+  TableMetadata *table_metadata_ptr_;
+  TableIterator table_iter_; ;
+  TableHeap *table_heap_ptr_;
 };
 }  // namespace bustub

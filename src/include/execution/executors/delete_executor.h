@@ -38,6 +38,7 @@ class DeleteExecutor : public AbstractExecutor {
                  std::unique_ptr<AbstractExecutor> &&child_executor);
 
   const Schema *GetOutputSchema() override { return plan_->OutputSchema(); };
+  
 
   void Init() override;
 
@@ -47,9 +48,12 @@ class DeleteExecutor : public AbstractExecutor {
   bool Next([[maybe_unused]] Tuple *tuple, RID *rid) override;
 
  private:
+ void Delete(Tuple &tuple,RID &rid);
   /** The delete plan node to be executed. */
   const DeletePlanNode *plan_;
   /** The child executor to obtain rid from. */
   std::unique_ptr<AbstractExecutor> child_executor_;
+  TableMetadata *table_metadata;
+  std::vector<IndexInfo *> index_infos;
 };
 }  // namespace bustub

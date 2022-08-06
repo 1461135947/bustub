@@ -191,6 +191,7 @@ class AggregationExecutor : public AbstractExecutor {
   }
 
  private:
+ Tuple TransformOutput();
   /** The aggregation plan node. */
   const AggregationPlanNode *plan_;
   /** The child executor whose tuples we are aggregating. */
@@ -199,5 +200,7 @@ class AggregationExecutor : public AbstractExecutor {
   // Uncomment me! SimpleAggregationHashTable aht_;
   /** Simple aggregation hash table iterator. */
   // Uncomment me! SimpleAggregationHashTable::Iterator aht_iterator_;
+  SimpleAggregationHashTable hash_table;
+  SimpleAggregationHashTable::Iterator hasht_table_iter;
 };
 }  // namespace bustub
